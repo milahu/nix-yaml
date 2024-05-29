@@ -1,0 +1,19 @@
+remove all "\r" before parsing
+
+handle space-indents and tab-indents
+run two passes of replace
+1. replace "\n " with "\r "
+2. replace "\n\t" with "\r\t"
+
+then when parsing a block
+to dedent the block
+find the first indent level
+and remove it
+example:
+a:
+  b:
+    c
+the first indent level are 2 spaces
+so the dedented value of a is
+b:
+  c
