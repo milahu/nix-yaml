@@ -23,21 +23,47 @@ let
     #builtins.trace "fromYAML input ${builtins.toJSON input}"
     (
     let
+
+      # remove all "\r" from input. convert windows and old-mac line-endings to unix
+      input1 = builtins.replaceStrings ["\r\n" "\r"] ["\n" "\n"] input;
+
       #blocks = lib.flatten (builtins.split "\n\n" input); # wrong
-      lines1 = lib.flatten (builtins.split "\n" input);
+
+      # split lines
+      lines1 = lib.flatten (builtins.split "\n" input1);
+
       # remove empty lines # TODO escape and preserve empty lines
       lines2 = builtins.filter (line: line != "") lines1;
+
       # remove comment lines
       lines3 = builtins.filter (line: (builtins.substring 0 1 line) != "#") lines2;
+
+      # join lines
       input2 = builtins.concatStringsSep "\n" lines3;
+
       # escape indents of sub-blocks
-      input3 = builtins.replaceStrings ["\n  "] ["\r  "] input2;
+      input3 = builtins.replaceStrings ["\n " "\n\t"] ["\r " "\r\t"] input2;
+
       # split blocks
       blocks1 = lib.flatten (builtins.split "\n" input3);
-      # unescape indents of sub-blocks
-      blocks2 = map (input: builtins.replaceStrings ["\r  "] ["\n  "] input) blocks1;
 
-      dedent = input: builtins.replaceStrings ["\n  "] ["\n"] input;
+      # unescape indents of sub-blocks
+      blocks2 = map (input: builtins.replaceStrings ["\r " "\r\t"] ["\n " "\n\t"] input) blocks1;
+
+      # get indent of the first line and remove that indent from the block
+      dedent = input: (
+        #builtins.trace "dedent: input ${builtins.toJSON input}"
+        (
+        let
+          matches = builtins.match "\n([ \t]+).*" input;
+          firstIndent = builtins.head matches;
+        in
+        if matches == null then input else (
+          #builtins.trace "dedent: firstIndent ${builtins.toJSON firstIndent}"
+          builtins.replaceStrings ["\n${firstIndent}"] ["\n"] input
+        )
+        )
+      );
 
       parseList = (blocks:
         map (input: fromYAML (builtins.substring 1 9999999 input)) blocks
